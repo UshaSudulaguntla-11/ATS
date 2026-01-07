@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATS Intelligence | Resume Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-dark: #020617; --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.3);
+            --card-bg: rgba(30, 41, 59, 0.5); --border-color: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc; --text-muted: #94a3b8; --success: #10b981;
+            --warning: #f59e0b; --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; overflow-x: hidden; background-image: radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 40%), radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.1) 0%, transparent 40%); }
+        .view { display: none; opacity: 0; transition: all 0.6s ease; }
+        .view.active { display: flex; opacity: 1; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1200px; padding: 2rem; }
+        .glass-card { background: var(--card-bg); backdrop-filter: blur(12px); border-radius: 24px; border: 1px solid var(--border-color); padding: 2rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); height: 100%; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 2rem; }
+        .field label { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+        input, textarea { width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; color: #fff; outline: none; margin-bottom: 1rem; font-family: inherit; }
+        .btn-analyze { background: linear-gradient(135deg, var(--accent), #818cf8); color: white; padding: 1rem; border-radius: 14px; font-weight: 800; border: none; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Gauge UI */
+        .gauge-wrapper { position: relative; display: flex; justify-content: center; margin-bottom: 1rem; }
+        .gauge-svg { width: 200px; height: 120px; }
+        .gauge-bg { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 14; stroke-linecap: round; }
+        .gauge-fill { fill: none; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 251.2; stroke-dashoffset: 251.2; transition: 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .score-display { position: absolute; bottom: 15px; text-align: center; width: 100%; }
+        .track-bar { height: 8px; width: 100%; border-radius: 10px; position: relative; margin: 1.5rem 0; background: rgba(255,255,255,0.05); overflow: hidden; }
+        .track-fill { height: 100%; background: linear-gradient(to right, var(--danger), var(--warning), var(--success)); transition: width 1.5s ease; width: 0%; }
+        
+        /* Result Text Boxes */
+        .result-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1rem; border: 1px solid var(--border-color); margin-top: 1rem; text-align: left; }
+        .result-box h4 { font-size: 0.75rem; color: var(--accent); margin-bottom: 0.5rem; text-transform: uppercase; }
+        .result-content { font-size: 0.85rem; line-height: 1.5; color: var(--text-main); white-space: pre-wrap; max-height: 250px; overflow-y: auto; }
+        .loading-spinner { animation: rotate 2s linear infinite; display: none; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="landingPage" class="view active" style="height: 100vh; justify-content: center;">
+    <div class="glass-card" style="text-align: center; max-width: 450px;">
+        <h1 style="font-size: 2.2rem; margin-bottom: 1.5rem;">ATS Intelligence</h1>
+        <button class="btn-analyze" onclick="enterApp()">Launch System <i data-lucide="play"></i></button>
+    </div>
+</div>
+
+<div id="dashboardPage" class="view">
+    <div class="container">
+        <header style="width: 100%; margin-bottom: 2rem; display: flex; justify-content: space-between;">
+            <h2 style="font-weight: 800;">Candidate Evaluation</h2>
+            <button onclick="window.location.reload()" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 5px 15px; border-radius: 8px; cursor: pointer;">Reset</button>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="glass-card">
+                <div class="field">
+                    <label>Candidate Name</label>
+                    <input type="text" id="userName" placeholder="John Doe">
+                </div>
+                <div class="field">
+                    <label>Job Description</label>
+                    <textarea id="jobInput" rows="6" placeholder="Paste the job requirements..."></textarea>
+                </div>
+                <div class="field">
+                    <label>Resume (PDF Only)</label>
+                    <div id="uploadBox" onclick="document.getElementById('fileIn').click()" style="border: 2px dashed var(--border-color); padding: 1.5rem; border-radius: 15px; text-align: center; cursor: pointer; margin-bottom: 1.5rem;">
+                        <i data-lucide="upload-cloud" style="margin-bottom: 10px;"></i>
+                        <p id="fileName" style="font-size: 0.8rem;">Select PDF File</p>
+                        <input type="file" id="fileIn" class="hidden" accept=".pdf" onchange="updateFileLabel()">
+                    </div>
+                </div>
+                <button class="btn-analyze" id="analyzeBtn" onclick="processAnalysis()">
+                    <i data-lucide="loader-2" id="btnLoading" class="loading-spinner"></i>
+                    <span id="btnText">Run ATS Analysis</span>
+                </button>
+            </div>
+
+            <div class="glass-card" id="resultsCard" style="opacity: 0.2; pointer-events: none;">
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 200 120">
+                        <path class="gauge-bg" d="M 20 100 A 80 80 0 0 1 180 100" />
+                        <path id="gaugeFill" class="gauge-fill" d="M 20 100 A 80 80 0 0 1 180 100" stroke="var(--accent)" />
+                    </svg>
+                    <div class="score-display">
+                        <div id="scoreVal" style="font-size: 3.2rem; font-weight: 800;">0</div>
+                        <div style="font-size: 0.6rem; color: var(--text-muted); letter-spacing: 2px;">MATCH %</div>
+                    </div>
+                </div>
+                
+                <div class="track-bar"><div class="track-fill" id="trackFill"></div></div>
+
+                <div class="result-box">
+                    <h4>AI Matching Verdict</h4>
+                    <div id="atsVerdict" class="result-content">Analysis will appear here...</div>
+                </div>
+                
+                <div class="result-box" style="border-top: 2px solid var(--accent);">
+                    <h4>Extracted Resume Data</h4>
+                    <div id="resumeData" class="result-content" style="font-size: 0.75rem; color: var(--text-muted);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+lucide.createIcons();
+
+function enterApp() {
+    document.getElementById('landingPage').classList.remove('active');
+    document.getElementById('dashboardPage').classList.add('active');
+}
+
+function updateFileLabel() {
+    const file = document.getElementById('fileIn').files[0];
+    if(file) document.getElementById('fileName').textContent = file.name;
+}
+
+async function processAnalysis() {
+    const name = document.getElementById('userName').value;
+    const jd = document.getElementById('jobInput').value;
+    const file = document.getElementById('fileIn').files[0];
+
+    if(!name || !jd || !file) return alert("Please provide Name, JD, and PDF.");
+
+    const btn = document.getElementById('analyzeBtn');
+    const loading = document.getElementById('btnLoading');
+    const text = document.getElementById('btnText');
+
+    btn.disabled = true;
+    loading.style.display = "block";
+    text.textContent = "Analyzing...";
+
+    const formData = new FormData();
+    formData.append("resume", file);
+    formData.append("job_description", jd);
+
+    try {
+        const response = await fetch("/analyze", { method: "POST", body: formData });
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // UI Updates
+        document.getElementById('resultsCard').style.opacity = "1";
+        document.getElementById('resultsCard').style.pointerEvents = "all";
+
+        // Logic to extract score from the text (your backend returns text)
+        const scoreMatch = data.ats_result.match(/(\d+)%/);
+        const score = scoreMatch ? parseInt(scoreMatch[1]) : 50;
+
+        document.getElementById('scoreVal').textContent = score;
+        document.getElementById('gaugeFill').style.strokeDashoffset = 251.2 - (2.512 * score);
+        document.getElementById('trackFill').style.width = score + "%";
+        
+        // Show verdict and original parsed resume so you can see if the AI missed Python
+        document.getElementById('atsVerdict').textContent = data.ats_result;
+        document.getElementById('resumeData').textContent = data.parsed_resume;
+
+    } catch (e) {
+        alert("Error: " + e.message);
+    } finally {
+        btn.disabled = false;
+        loading.style.display = "none";
+        text.textContent = "Run ATS Analysis";
+    }
+}
+</script>
+</body>
+</html>
