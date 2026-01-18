@@ -56,4 +56,5 @@ Do not push your API key to GitHub for security.
 📸 Screenshots / Demo
 
 Dashboard Screenshot:https://github.com/UshaSudulaguntla-11/ATS/blob/main/assets/dashboard.png
+
 Demo :https://github.com/UshaSudulaguntla-11/ATS/blob/main/assets/demo_vedio.mp4
